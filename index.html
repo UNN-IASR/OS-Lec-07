@@ -1,0 +1,419 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Лекция 7. Управление процессами</title>
+<meta http-equiv="Content-Language" content="English" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+
+<div id="wrap">
+<div id="header">
+<h1><a href="#">Лекция 7. Управление процессами</a></h1></div>
+<div id="menu"></div>
+<div id="content">
+<div class="left">
+<h2>1 Состояния процесса</h2>
+<a name="1-1-Состояния процесса"></a>
+<h4>Введение</h4><a name="3-100-Введение"></a>
+<p><i>Подсистема управления процессами</i> планирует выполнение процессов, то есть распределяет процессорное время между несколькими одновременно существующими в системе процессами, а также занимается созданием и уничтожением процессов, обеспечивает процессы необходимыми системными ресурсами, поддерживает взаимодействие между процессами. 
+</p><h4>Состояния процесса</h4><a name="3-120-Состояния процесса"></a>
+<p>В многозадачной (многопроцессной) системе процесс может находиться в одном из нескольких состояний (на примере ОС Unix):
+</p><img src='proc2.png'><ul>
+<li> <i>Рождение</i> - процесс обретает управляющие структуры (дескриптор, контекст), записи о нём вносятся в структуры ядра.
+<li> <i>Готовность к выполнению</i> - процесс обладает всеми ресурсами кроме доступа к процессору (состояние ''низкого старта'').
+<li> <i>Выполнение в режиме ядра</i> - процесс выполняет системный вызов и ядро в привилегированном режиме обрабатывает его.
+<li> <i>Выполнение в режиме пользователя (задачи)</i> - основной режим выполнения команд процесса.
+<li> <i>Ожидание</i> - выполнение процесса заблокировано и он переводится в состояние ожидания.
+<li> <i>Завершение</i> - у процесса отнимаются все ресурсы и он уничтожается.
+</ul>
+<p>Для ОС Unix есть ещё одно интересное состояние процесса - <i>зомби</i>, когда он уже не жив и ещё не мёртв.
+</p><br>
+
+<p>При завершении процесса должна удаляться его структура из списка процессов. Иногда процесс уже завершился, но его имя еще не удалено из списка процессов. В этом случае процесс становится зомби - его уже нет, но мы его видим в диспетчере задач. Такое может произойти, если <i>процесс-потомок</i> (дочерний процесс) завершился раньше, чем этого ожидал <i>процесс-родитель</i>.
+</p><h2>2 Создание процессов</h2>
+<a name="1-2-Создание процессов"></a>
+<h3>2.1 В Unix</h3>
+<a name="2-3-В Unix"></a>
+<h4>Создание процесса</h4><a name="3-140-Создание процесса"></a>
+<p><i>Создать процесс</i> — это прежде всего означает создать описатель процесса, в качестве которого выступает одна или несколько информационных структур, содержащих все сведения о процессе,, необходимые операционной системе для управления им. В число таких сведений могут входить, например, идентификатор процесса, данные о расположении в памяти исполняемого модуля, степень привилегированности процесса (приоритет и права доступа) и т.п.
+</p><br>
+
+<p>Создание процесса включает загрузку кодов и данных исполняемой программы данного процесса с диска в оперативную память. Для этого ОС должна обнаружить местоположение такой программы на диске, перераспределить оперативную память и выделить память исполняемой программе нового процесса. Затем необходимо считать программу в выделенные для нее участки памяти и, возможно, изменить параметры программы в зависимости от размещения в памяти
+</p><p>В многопоточной системе при создании процесса ОС создает для каждого процесса как минимум один поток выполнения. При создании потока так же, как и при создании процесса, операционная система генерирует специальную информационную структуру — описатель потока, который содержит идентификатор потока, данные о правах доступа и приоритете, о состоянии потока и другую информацию.
+</p><br>
+
+<p>В разных ОС по-разному строятся отношения между потоками-потомками и их родителями. Например, в одних ОС выполнение родительского потока синхронизируется с его потомками, в частности после завершения родительского потока ОС может снимать с выполнения всех его потомков. В других системах потоки-потомки могут выполняться асинхронно по отношению к родительскому потоку. Потомки, как правило, наследуют многие свойства родительских потоков. Во многих системах порождение потомков является основным механизмом создания процессов и потоков. 
+</p><p>Рассмотрим в качестве примера создание процессов в операционной системы UNIX System V. В рассматриваемой версии этой системы потоки не поддерживаются, в качестве единицы управления и единицы потребления ресурсов выступает процесс.
+</p><br>
+
+<p>При управлении процессами операционная система использует два основных типа информационных структур: <b>дескриптор</b> процесса и <b>контекст</b> процесса. Дескриптор процесса содержит такую информацию о процессе, которая необходима ядру в течение всего жизненного цикла процесса независимо от того, находится он в активном или пассивном состоянии, находится образ процесса в оперативной памяти или выгружен на диск. (Образом процесса называется совокупность его кодов и данных.)
+</p><p>Дескрипторы отдельных процессов объединены в список, образующий <b>таблицу процессов</b>. Память для таблицы процессов отводится динамически в области ядра. На основании информации, содержащейся в таблице процессов, операционная система осуществляет планирование и синхронизацию процессов. В дескрипторе прямо или косвенно (через указатели, на связанные с процессом структуры) содержится информация о состоянии процесса, о расположении образа процесса в оперативной памяти и на диске, о значении отдельных составляющих приоритета, а также о его итоговом значении — глобальном приоритете, об идентификаторе пользователя, создавшего процесс, о родственных процессах, о событиях, осуществления которых ожидает данный процесс, и некоторая другая информация. 
+</p><p>Контекст процесса содержит менее оперативную, но более объемную часть информации о процессе, необходимую для возобновления выполнения процесса с прерванного места: 
+</p><ul>
+<li> содержимое регистров процессора, 
+<li> коды ошибок выполняемых процессором системных вызовов, 
+<li> информация обо всех открытых данным процессом файлах 
+<li> незавершенных операциях ввода-вывода 
+<li> другие данные, характеризующие состояние вычислительной среды в момент прерывания. 
+</ul>
+<p>Контекст, так же как и дескриптор процесса, доступен только программам ядра, то есть находится в виртуальном адресном пространстве операционной системы, однако он хранится не в области ядра, а непосредственно примыкает к образу процесса и перемещается вместе с ним, если это необходимо, из оперативной памяти на диск.
+</p><br>
+
+<p>Порождение процессов в системе UNIX происходит в результате выполнения системного вызова <i>fork</i>. ОС строит образ порожденного процесса являющийся точной копией образа породившего процесса, то есть дублируются дескриптор, контекст и образ процесса. Сегмент данных и сегмент стека родительского процесса копируются на новое место, образуя сегменты данных и стека процесса-потомка.
+</p><br>
+
+<p>После выполнения системного вызова <b>fork</b> оба процесса продолжают выполнение с одной и той же точки. Чтобы процесс мог опознать, является он родительским процессом или процессом-потомком, системный вызов <b>fork</b> возвращает в качестве своего значения в породивший процесс идентификатор порожденного процесса, а в порожденный процесс — <b>NULL</b>. Типичное разветвление на языке С записывается так:
+</p><br>
+
+<pre>
+<p>    if( -fork() ) { действия родительского процесса }
+</p><p>    else { действия порожденного процесса }
+</p></pre>
+<br>
+
+<p><b>Идентификатор</b> потомка может быть присвоен переменной, входящей в контекст родительского процесса. Так как контекст процесса наследуется его потомками, то потомки могут узнать идентификаторы своих «старших братьев», таким образом сумма знаний наследуется при порождении и может быть распространена между родственными процессами. На независимости идентификатора процесса от выполняемой процессом программы построен механизм, позволяющий процессу перейти к выполнению другой программы с помощью системного вызова ехес.
+</p><br>
+
+<p>Таким образом, в UNIX порождение нового процесса происходит в два этапа — сначала создается копия процесса-родителя, затем у нового процесса производится замена кодового сегмента на заданный.
+</p><br>
+
+<p>Вновь созданному процессу операционная система присваивает целочисленный идентификатор, уникальный на весь период функционирования системы.
+</p><br>
+
+<p><div class='codebox'><code><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;stdlib.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;sys/wait.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;fcntl.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;unistd.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;stddef.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;signal.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;stdio.h&gt;</font>
+<font color="#009900">int</font> <b><font color="#000000">main</font></b><font color="#990000">()</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">int</font> pid<font color="#990000">;</font>
+   <b><font color="#000000">printf</font></b><font color="#990000">(</font><font color="#FF0000">"Старт программы</font><font color="#CC33CC">\n</font><font color="#FF0000">"</font><font color="#990000">);</font>
+   pid<font color="#990000">=</font><b><font color="#000000">fork</font></b><font color="#990000">();</font> 
+   <b><font color="#0000FF">switch</font></b><font color="#990000">(</font>pid<font color="#990000">)</font>
+   <font color="#FF0000">{</font>
+         <b><font color="#0000FF">case</font></b> <font color="#990000">-</font><font color="#993399">1</font><font color="#990000">:</font> <b><font color="#000000">perror</font></b><font color="#990000">(</font><font color="#FF0000">"fork"</font><font color="#990000">);</font> 
+         <b><font color="#0000FF">break</font></b><font color="#990000">;</font>
+         <b><font color="#0000FF">case</font></b> <font color="#993399">0</font><font color="#990000">:</font> 
+                  <b><font color="#000000">printf</font></b><font color="#990000">(</font><font color="#FF0000">"</font><font color="#CC33CC">\n</font><font color="#FF0000">Создан дочерний процесс</font><font color="#CC33CC">\n</font><font color="#FF0000">"</font><font color="#990000">);</font>
+                  <i><font color="#9A1900">// код дочернего процесса... </font></i>
+                  <b><font color="#000000">printf</font></b><font color="#990000">(</font><font color="#FF0000">"</font><font color="#CC33CC">\n</font><font color="#FF0000">Завершён дочерний процесс</font><font color="#CC33CC">\n</font><font color="#FF0000">"</font><font color="#990000">);</font>
+                  <b><font color="#0000FF">return</font></b> <font color="#993399">0</font><font color="#990000">;</font>
+<b><font color="#008080">         default: </font></b>
+                  <i><font color="#9A1900">// код родительского процесса...</font></i>
+                  <b><font color="#000000">printf</font></b><font color="#990000">(</font><font color="#FF0000">"</font><font color="#CC33CC">\n</font><font color="#FF0000">'Отец' завершён</font><font color="#CC33CC">\n</font><font color="#FF0000">"</font><font color="#990000">);</font>
+                  <b><font color="#000000">exit</font></b><font color="#990000">(</font><font color="#993399">0</font><font color="#990000">);</font>
+   <font color="#FF0000">}</font>
+   <b><font color="#0000FF">return</font></b> <font color="#993399">0</font><font color="#990000">;</font>
+<font color="#FF0000">}</font>
+</tt></pre>
+</code></div></p>
+<p>В приведённом примере после вызова <b>fork</b> анализируется возвращаемое этой функции значение. Если оно равняется 0, то это значит что мы выполняем дочерний процесс, если положительное число (PID потомка), то мы находимся внутри родительского процесса.
+</p><br>
+
+<p>Когда потомок вызывает <b>exit()</b>, код возврата передается родителю, который ждет его, вызвав <b>wait()</b>. <b>WEXITSTATUS()</b> представляет собой макрос, который получает фактический код возврата потомка из вызова <b>wait()</b>.
+</p><br>
+
+<p>Функция <b>wait()</b> ждет завершения первого из всех возможных потомков родительского процесса. Иногда необходимо точно определить, какой из потомков должен завершиться. Для этого используется вызов <b>waitpid()</b> с соответствующим PID потомка в качестве аргумента.
+</p><p>Задачей системного вызова <i>exec</i> является замена текущего процесса на новый процесс. Как только вы вызываете <b>exec</b>, текущий процесс завершается и начинается новый. Если вы хотите создать отдельный процесс, сначала вы должны вызвать <b>fork</b>, затем вызвать <b>exec</b> для новой программы в дочернем процессе.
+</p><p><div class='codebox'><code><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;sys/types.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;stdio.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;unistd.h&gt;</font>
+
+<font color="#009900">int</font> <b><font color="#000000">main</font></b><font color="#990000">()</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">char</font> pid<font color="#990000">[</font><font color="#993399">255</font><font color="#990000">];</font>
+   <b><font color="#000000">fork</font></b><font color="#990000">();</font>
+   <b><font color="#000000">fork</font></b><font color="#990000">();</font>
+   <b><font color="#000000">fork</font></b><font color="#990000">();</font>
+   <b><font color="#000000">sprintf</font></b><font color="#990000">(</font>pid<font color="#990000">,</font> <font color="#FF0000">"PID : %d</font><font color="#CC33CC">\n</font><font color="#FF0000">"</font><font color="#990000">,</font><b><font color="#000000">getpid</font></b><font color="#990000">());</font>
+   <b><font color="#000000">write</font></b><font color="#990000">(</font>STDOUT_FILENO<font color="#990000">,</font> pid<font color="#990000">,</font> <b><font color="#000000">strlen</font></b><font color="#990000">(</font>pid<font color="#990000">));</font>
+   <b><font color="#000000">exit</font></b><font color="#990000">(</font><font color="#993399">0</font><font color="#990000">);</font>
+<font color="#FF0000">}</font>
+</tt></pre>
+</code></div></p>
+<p>В рассматриваемом случае будет создано <b>семь</b> процессов-потомков. Первый вызов <b>fork()</b> создает первого потомка. Как указано выше, процесс наследует положение указателя команд от родительского процесса. Указатель команд содержит адрес следующего оператора программы. Это значит, что после первого вызова <b>fork()</b>, указатель команд и родителя, и потомка находится перед вторым вызовом <b>fork()</b>.После второго вызова <b>fork()</b> и родитель, и первый потомок производят потомков второго поколения - всего процессов становится 4. После третьего вызова <b>fork()</b> каждый процесс производит своего потомка, увеличивая общее число процессов до 8.
+</p><br>
+
+<p>Процессы - зомби возникают, если потомок завершился, а родительский процесс не вызвал <b>wait()</b>. Для завершения процессы используют либо оператор возврата, либо вызов функции <b>exit()</b> со значением, которое будет возвращено операционной системе. Операционная система оставляет процесс зарегистрированным в своей внутренней таблице данных, пока родительский процесс не получит кода возврата потомка, либо не закончится сам. В случае процесса-зомби его код возврата не передается родителю и запись об этом процессе не удаляется из таблицы процессов операционной системы. При дальнейшей работе и появлении новых зомби таблица процессов может быть заполнена, что приведет к невозможности создания новых процессов.
+</p><h3>2.2 В Windows</h3>
+<a name="2-4-В Windows"></a>
+<h4>Создание процесса</h4><a name="3-200-Создание процесса"></a>
+<p>Создание <b>Win32</b> процесса осуществляется вызовом одной из таких функций, как <b>CreateProcess</b>, <b>CreateProcessAsUser</b> (для Win NT/2000) и <b>CreateProcessWithLogonW</b> (начиная с Win2000) и происходит в несколько этапов:
+</p><ul>
+<li> Открывается файл образа (EXE), который будет выполняться в процессе. Если исполняемый файл не является Win32 приложением, то ищется образ поддержки (support image) для запуска этой программы. Например, если исполняется файл с расширением .bat, запускается cmd.exe и т.п.
+<li> В WinNT/2000 для отладки программ реализовано следующее. CreateProcess, найдя исполняемый Win32 файл, ищет в SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Option раздел с именем и расширением запускаемого файла, затем ищет в нем параметр Debugger, и если строка не пуста, запускает то, что в ней написано вместо данной программы.
+</ul>
+<ul>
+<li> Создается объект Win32 "процесс".
+<li> Создается первичный поток (стек, контекст и объект "поток").
+<li> Подсистема Win32 уведомляется о создании нового процесса и потока.
+<li> Начинается выполнение первичного потока.
+<li> В контексте нового процесса и потока инициализируется адресное пространство (например, загружаются требуемые DLL) и начинается выполнение программы.
+</ul>
+<p>Пример создания программы ''Калькулятор''
+</p><p><div class='codebox'><code><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;windows.h&gt;</font>
+<font color="#009900">int</font> <b><font color="#000000">main</font></b><font color="#990000">(</font><font color="#009900">int</font> argc<font color="#990000">,</font> <font color="#009900">char</font><font color="#990000">*</font> argv<font color="#990000">[])</font>
+<font color="#FF0000">{</font>
+	<font color="#008080">STARTUPINFO</font> si<font color="#990000">;</font>
+	<font color="#008080">PROCESS_INFORMATION</font> pi<font color="#990000">;</font>
+	<b><font color="#000000">ZeroMemory</font></b><font color="#990000">(</font> <font color="#990000">&amp;</font>si<font color="#990000">,</font> <b><font color="#0000FF">sizeof</font></b><font color="#990000">(</font>si<font color="#990000">)</font> <font color="#990000">);</font>
+	si<font color="#990000">.</font>cb <font color="#990000">=</font> <b><font color="#0000FF">sizeof</font></b><font color="#990000">(</font>si<font color="#990000">);</font>
+	<b><font color="#000000">ZeroMemory</font></b><font color="#990000">(</font> <font color="#990000">&amp;</font>pi<font color="#990000">,</font> <b><font color="#0000FF">sizeof</font></b><font color="#990000">(</font>pi<font color="#990000">)</font> <font color="#990000">);</font>
+	<b><font color="#0000FF">if</font></b><font color="#990000">(</font> <font color="#990000">!</font><b><font color="#000000">CreateProcess</font></b><font color="#990000">(</font> NULL<font color="#990000">,</font> <font color="#FF0000">"c:/windows/system32/calc.exe"</font><font color="#990000">,</font> NULL<font color="#990000">,</font> NULL<font color="#990000">,</font> FALSE<font color="#990000">,</font>
+		<font color="#993399">0</font><font color="#990000">,</font> NULL<font color="#990000">,</font> NULL<font color="#990000">,</font> <font color="#990000">&amp;</font>si<font color="#990000">,</font> <font color="#990000">&amp;</font>pi<font color="#990000">))</font>
+		<b><font color="#0000FF">return</font></b> <font color="#993399">0</font><font color="#990000">;</font>
+	<i><font color="#9A1900">// Close process and thread handles.</font></i>
+	<b><font color="#000000">CloseHandle</font></b><font color="#990000">(</font> pi<font color="#990000">.</font>hProcess <font color="#990000">);</font>
+	<b><font color="#000000">CloseHandle</font></b><font color="#990000">(</font> pi<font color="#990000">.</font>hThread <font color="#990000">);</font>
+	<b><font color="#0000FF">return</font></b> <font color="#993399">0</font><font color="#990000">;</font>
+<font color="#FF0000">}</font>
+</tt></pre>
+</code></div></p>
+<p>При создании проекта в MS Visual C++ необходимо убедиться, что в настройках проекта выбрана опция <b>Character set=Not set</b>.
+</p><h2>3 Создание потоков</h2>
+<a name="1-5-Создание потоков"></a>
+<h4>Создание потока</h4><a name="3-220-Создание потока"></a>
+<p>Рассмотрим создание нескольких потоков в Windows. Сначала небольшой пример, в котором родительский процесс <b>main</b> порождает поток с помощью метода <b>CreateThread</b> и передаёт ему для выполнения функцию <b>ThreadFunc</b>
+</p><p><div class='codebox'><code><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;windows.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;conio.h&gt;</font>
+
+DWORD <font color="#008080">WINAPI</font> <b><font color="#000000">ThreadFunc</font></b><font color="#990000">(</font><font color="#008080">LPVOID</font> lpParam<font color="#990000">)</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">char</font> szMsg<font color="#990000">[</font><font color="#993399">80</font><font color="#990000">];</font>
+   <b><font color="#000000">wsprintf</font></b><font color="#990000">(</font>szMsg<font color="#990000">,</font> <font color="#FF0000">"Parameter = %d"</font><font color="#990000">,</font> <font color="#990000">*(</font>DWORD<font color="#990000">*)</font>lpParam<font color="#990000">);</font>
+   <b><font color="#000000">MessageBox</font></b><font color="#990000">(</font> NULL<font color="#990000">,</font> szMsg<font color="#990000">,</font> <font color="#FF0000">" ThreadFunc"</font><font color="#990000">,</font> MB_OK <font color="#990000">);</font>	
+   <b><font color="#0000FF">return</font></b> <font color="#993399">0</font><font color="#990000">;</font>
+<font color="#FF0000">}</font>
+
+<font color="#008080">VOID</font> <b><font color="#000000">main</font></b><font color="#990000">(</font> VOID <font color="#990000">)</font>
+<font color="#FF0000">{</font>	
+   <font color="#008080">DWORD</font> dwThreadId<font color="#990000">,</font> dwThrdParam <font color="#990000">=</font> <font color="#993399">1</font><font color="#990000">;</font>
+   <font color="#008080">HANDLE</font> hThread<font color="#990000">;</font>	
+   <font color="#009900">char</font> szMsg<font color="#990000">[</font><font color="#993399">80</font><font color="#990000">];</font>
+   hThread <font color="#990000">=</font> <b><font color="#000000">CreateThread</font></b><font color="#990000">(</font>
+	NULL<font color="#990000">,</font>         <i><font color="#9A1900">// атрибуты безопасности по умолчанию</font></i>
+	<font color="#993399">0</font><font color="#990000">,</font>            <i><font color="#9A1900">// размер стека используется по умолчанию</font></i>
+	ThreadFunc<font color="#990000">,</font>   <i><font color="#9A1900">// функция потока</font></i>
+	<font color="#990000">&amp;</font>dwThrdParam<font color="#990000">,</font> <i><font color="#9A1900">// аргумент функции потока</font></i>
+	<font color="#993399">0</font><font color="#990000">,</font>            <i><font color="#9A1900">// флажки создания используются по умолчанию</font></i>
+	<font color="#990000">&amp;</font>dwThreadId<font color="#990000">);</font> <i><font color="#9A1900">// возвращает идентификатор потока</font></i>
+	<i><font color="#9A1900">// При успешном завершении проверяет возвращаемое значение.</font></i>
+
+   <b><font color="#0000FF">if</font></b> <font color="#990000">(</font>hThread <font color="#990000">==</font> NULL<font color="#990000">)</font>
+   <font color="#FF0000">{</font>
+      <b><font color="#000000">wsprintf</font></b><font color="#990000">(</font> szMsg<font color="#990000">,</font> <font color="#FF0000">"CreateThread failed."</font> <font color="#990000">);</font> 
+      <b><font color="#000000">MessageBox</font></b><font color="#990000">(</font> NULL<font color="#990000">,</font> szMsg<font color="#990000">,</font> <font color="#FF0000">"main"</font><font color="#990000">,</font> MB_OK <font color="#990000">);</font>
+   <font color="#FF0000">}</font>
+   <b><font color="#0000FF">else</font></b> 
+   <font color="#FF0000">{</font>
+      <b><font color="#000000">_getch</font></b><font color="#990000">();</font>
+      <b><font color="#000000">CloseHandle</font></b><font color="#990000">(</font> hThread <font color="#990000">);</font>
+   <font color="#FF0000">}</font>
+<font color="#FF0000">}</font> 
+</tt></pre>
+</code></div></p>
+<p>Рассмотрим программу, создающую несколько потоков, каждый из которых сортирует массив целых чисел с помощью своего метода сортировки.
+</p><p><div class='codebox'><code><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;windows.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;conio.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;time.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;stdlib.h&gt;</font>
+<b><font color="#000080">#include</font></b> <font color="#FF0000">&lt;iostream&gt;</font>
+using <font color="#008080">namespace</font> std<font color="#990000">;</font>
+
+<i><font color="#9A1900">// размер сортируемых массивов</font></i>
+<b><font color="#0000FF">const</font></b> <font color="#009900">int</font> N<font color="#990000">=</font><font color="#993399">65536</font><font color="#990000">;</font>
+<i><font color="#9A1900">// обмен значений двух переменных</font></i>
+<font color="#009900">void</font> <b><font color="#000000">swap</font></b><font color="#990000">(</font><font color="#009900">int</font> <font color="#990000">*</font>A<font color="#990000">,</font> <font color="#009900">int</font> <font color="#990000">*</font>B<font color="#990000">)</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">int</font> T<font color="#990000">=*</font>A<font color="#990000">;</font>
+   <font color="#990000">*</font>A<font color="#990000">=*</font>B<font color="#990000">;</font>
+   <font color="#990000">*</font>B<font color="#990000">=</font>T<font color="#990000">;</font>
+<font color="#FF0000">}</font> 
+<i><font color="#9A1900">// реализация сортировки пузырьком       </font></i>
+<font color="#009900">void</font> <b><font color="#000000">BubbleSort</font></b><font color="#990000">(</font><font color="#009900">int</font> <font color="#990000">*</font>a<font color="#990000">,</font> <font color="#009900">int</font> N<font color="#990000">)</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">int</font> i<font color="#990000">,</font>j<font color="#990000">;</font>
+   <b><font color="#0000FF">for</font></b><font color="#990000">(</font>i<font color="#990000">=</font><font color="#993399">0</font><font color="#990000">;</font>i<font color="#990000">&lt;</font>N<font color="#990000">-</font><font color="#993399">1</font><font color="#990000">;</font>i<font color="#990000">++)</font>
+      <b><font color="#0000FF">for</font></b><font color="#990000">(</font>j<font color="#990000">=</font>N<font color="#990000">-</font><font color="#993399">1</font><font color="#990000">;</font>j<font color="#990000">&gt;</font>i<font color="#990000">;</font>j<font color="#990000">--)</font>
+        <b><font color="#0000FF">if</font></b><font color="#990000">(</font>a<font color="#990000">[</font>j<font color="#990000">-</font><font color="#993399">1</font><font color="#990000">]&gt;</font>a<font color="#990000">[</font>j<font color="#990000">])</font>
+           <b><font color="#000000">swap</font></b><font color="#990000">(&amp;</font>a<font color="#990000">[</font>j<font color="#990000">-</font><font color="#993399">1</font><font color="#990000">],&amp;</font>a<font color="#990000">[</font>j<font color="#990000">]);</font>
+<font color="#FF0000">}</font>
+<i><font color="#9A1900">// реализация сортировки выбором</font></i>
+<font color="#009900">void</font> <b><font color="#000000">SelectionSort</font></b><font color="#990000">(</font><font color="#009900">int</font> <font color="#990000">*</font>a<font color="#990000">,</font> <font color="#009900">int</font> N<font color="#990000">)</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">int</font> i<font color="#990000">,</font>j<font color="#990000">,</font>index<font color="#990000">;</font>
+   <b><font color="#0000FF">for</font></b><font color="#990000">(</font>i<font color="#990000">=</font><font color="#993399">0</font><font color="#990000">;</font>i<font color="#990000">&lt;</font>N<font color="#990000">-</font><font color="#993399">1</font><font color="#990000">;</font>i<font color="#990000">++)</font>
+   <font color="#FF0000">{</font>
+      index<font color="#990000">=</font>i<font color="#990000">;</font>
+      <b><font color="#0000FF">for</font></b><font color="#990000">(</font>j<font color="#990000">=</font>i<font color="#990000">+</font><font color="#993399">1</font><font color="#990000">;</font>j<font color="#990000">&lt;</font>N<font color="#990000">;</font>j<font color="#990000">++)</font>
+        <b><font color="#0000FF">if</font></b><font color="#990000">(</font>a<font color="#990000">[</font>j<font color="#990000">]&lt;</font>a<font color="#990000">[</font>index<font color="#990000">])</font>
+           index<font color="#990000">=</font>j<font color="#990000">;</font>
+      <b><font color="#000000">swap</font></b><font color="#990000">(&amp;</font>a<font color="#990000">[</font>i<font color="#990000">],&amp;</font>a<font color="#990000">[</font>index<font color="#990000">]);</font>
+     <font color="#FF0000">}</font>
+<font color="#FF0000">}</font>
+<i><font color="#9A1900">// реализация сортировки вставками</font></i>
+<font color="#009900">void</font> <b><font color="#000000">InsertionSort</font></b><font color="#990000">(</font><font color="#009900">int</font> <font color="#990000">*</font>a<font color="#990000">,</font> <font color="#009900">int</font> N<font color="#990000">)</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">int</font> i<font color="#990000">,</font>j<font color="#990000">;</font>
+   <font color="#009900">int</font> temp<font color="#990000">;</font>
+
+   <b><font color="#0000FF">for</font></b><font color="#990000">(</font>i<font color="#990000">=</font><font color="#993399">1</font><font color="#990000">;</font>i<font color="#990000">&lt;</font>N<font color="#990000">;</font>i<font color="#990000">++)</font>
+   <font color="#FF0000">{</font>
+      j<font color="#990000">=</font>i<font color="#990000">;</font>
+      temp<font color="#990000">=</font>a<font color="#990000">[</font>i<font color="#990000">];</font>
+      <b><font color="#0000FF">while</font></b><font color="#990000">(</font>j<font color="#990000">&gt;</font><font color="#993399">0</font> <font color="#990000">&amp;&amp;</font> temp<font color="#990000">&lt;</font>a<font color="#990000">[</font>j<font color="#990000">-</font><font color="#993399">1</font><font color="#990000">])</font>
+      <font color="#FF0000">{</font>
+         a<font color="#990000">[</font>j<font color="#990000">]=</font>a<font color="#990000">[</font>j<font color="#990000">-</font><font color="#993399">1</font><font color="#990000">];</font>
+	     j<font color="#990000">--;</font>
+      <font color="#FF0000">}</font>
+      a<font color="#990000">[</font>j<font color="#990000">]=</font>temp<font color="#990000">;</font>
+   <font color="#FF0000">}</font>
+<font color="#FF0000">}</font>
+<i><font color="#9A1900">// реализация быстрой сортировки</font></i>
+<font color="#009900">void</font> <b><font color="#000000">QuickSort</font></b><font color="#990000">(</font><font color="#009900">int</font><font color="#990000">*</font> a<font color="#990000">,</font> <font color="#009900">int</font> p<font color="#990000">,</font> <font color="#009900">int</font> r<font color="#990000">)</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">int</font> i<font color="#990000">,</font>j<font color="#990000">;</font>
+   <font color="#009900">int</font> x<font color="#990000">;</font>
+   i<font color="#990000">=</font>p<font color="#990000">;</font>
+   j<font color="#990000">=</font>r<font color="#990000">;</font>
+   x<font color="#990000">=</font>a<font color="#990000">[(</font>i<font color="#990000">+</font>j<font color="#990000">)/</font><font color="#993399">2</font><font color="#990000">];</font>
+   <b><font color="#0000FF">do</font></b>
+   <font color="#FF0000">{</font>
+      <b><font color="#0000FF">while</font></b><font color="#990000">(</font>a<font color="#990000">[</font>i<font color="#990000">]&lt;</font>x<font color="#990000">)</font> i<font color="#990000">++;</font>
+      <b><font color="#0000FF">while</font></b><font color="#990000">(</font>a<font color="#990000">[</font>j<font color="#990000">]&gt;</font>x<font color="#990000">)</font> j<font color="#990000">--;</font>
+
+      <b><font color="#0000FF">if</font></b><font color="#990000">(</font>i<font color="#990000">&lt;=</font>j<font color="#990000">)</font>
+      <font color="#FF0000">{</font>
+         <b><font color="#000000">swap</font></b><font color="#990000">(&amp;</font>a<font color="#990000">[</font>i<font color="#990000">],&amp;</font>a<font color="#990000">[</font>j<font color="#990000">]);</font>
+	     i<font color="#990000">++;</font>
+	     j<font color="#990000">--;</font>
+      <font color="#FF0000">}</font>
+   <font color="#FF0000">}</font>
+   <b><font color="#0000FF">while</font></b><font color="#990000">(</font>i<font color="#990000">&lt;=</font>j<font color="#990000">);</font>
+   <b><font color="#0000FF">if</font></b><font color="#990000">(</font>j<font color="#990000">&gt;</font>p<font color="#990000">)</font>
+      <b><font color="#000000">QuickSort</font></b><font color="#990000">(</font>a<font color="#990000">,</font>p<font color="#990000">,</font>j<font color="#990000">);</font>
+   <b><font color="#0000FF">if</font></b><font color="#990000">(</font>i<font color="#990000">&lt;</font>r<font color="#990000">)</font>
+      <b><font color="#000000">QuickSort</font></b><font color="#990000">(</font>a<font color="#990000">,</font>i<font color="#990000">,</font>r<font color="#990000">);</font>
+<font color="#FF0000">}</font>
+
+<i><font color="#9A1900">// функция для вызова быстрой сортировки</font></i>
+DWORD <font color="#008080">WINAPI</font> <b><font color="#000000">ThreadFuncQuick</font></b><font color="#990000">(</font><font color="#008080">LPVOID</font> lpParam<font color="#990000">)</font>
+<font color="#FF0000">{</font>
+   <font color="#009900">int</font> <font color="#990000">*</font>arr<font color="#990000">=</font><font color="#008080">new</font> <font color="#009900">int</font><font color="#990000">[</font>N<font color="#990000">];</font>
+   <b><font color="#0000FF">for</font></b><font color="#990000">(</font><font color="#009900">int</font> i<font color="#990000">=</font><font color="#993399">0</font><font color="#990000">;</font>i<font color="#990000">&lt;</font>N<font color="#990000">;</font>i<font color="#990000">++)</font>
+      arr<font color="#990000">[</font>i<font color="#990000">]=</font><b><font color="#000000">rand</font></b><font color="#990000">()%</font><font color="#993399">100</font><font color="#990000">;</font>	
+   <b><font color="#000000">QuickSort</font></b><font color="#990000">(</font>arr<font color="#990000">,</font><font color="#993399">0</font><font color="#990000">,</font>N<font color="#990000">-</font><font color="#993399">1</font><font color="#990000">);</font>
+	   
+   cout<font color="#990000">&lt;&lt;</font><font color="#FF0000">"Quick"</font><font color="#990000">&lt;&lt;</font>endl<font color="#990000">;</font>
+   cout<font color="#990000">.</font><b><font color="#000000">flush</font></b><font color="#990000">();</font>
+   <b><font color="#0000FF">return</font></b> <font color="#993399">0</font><font color="#990000">;</font>
+<font color="#FF0000">}</font>
+<i><font color="#9A1900">// функция для вызова сортировки вставками</font></i>
+DWORD <font color="#008080">WINAPI</font> <b><font color="#000000">ThreadFuncInsertion</font></b><font color="#990000">(</font><font color="#008080">LPVOID</font> lpParam<font color="#990000">)</font>
+<font color="#FF0000">{</font>
+	<font color="#009900">int</font> <font color="#990000">*</font>arr<font color="#990000">=</font><font color="#008080">new</font> <font color="#009900">int</font><font color="#990000">[</font>N<font color="#990000">];</font>
+	<b><font color="#0000FF">for</font></b><font color="#990000">(</font><font color="#009900">int</font> i<font color="#990000">=</font><font color="#993399">0</font><font color="#990000">;</font>i<font color="#990000">&lt;</font>N<font color="#990000">;</font>i<font color="#990000">++)</font>
+		arr<font color="#990000">[</font>i<font color="#990000">]=</font><b><font color="#000000">rand</font></b><font color="#990000">()%</font><font color="#993399">100</font><font color="#990000">;</font>	
+	<b><font color="#000000">InsertionSort</font></b><font color="#990000">(</font>arr<font color="#990000">,</font>N<font color="#990000">);</font>	
+	cout<font color="#990000">&lt;&lt;</font><font color="#FF0000">"Insertion"</font><font color="#990000">&lt;&lt;</font>endl<font color="#990000">;</font>
+	cout<font color="#990000">.</font><b><font color="#000000">flush</font></b><font color="#990000">();</font>
+	<b><font color="#0000FF">return</font></b> <font color="#993399">0</font><font color="#990000">;</font>
+<font color="#FF0000">}</font>
+
+<font color="#008080">VOID</font> <b><font color="#000000">main</font></b><font color="#990000">(</font> VOID <font color="#990000">)</font>
+<font color="#FF0000">{</font>	
+   <b><font color="#000000">srand</font></b><font color="#990000">(</font><b><font color="#000000">time</font></b><font color="#990000">(</font><font color="#993399">0</font><font color="#990000">));</font>
+   <font color="#008080">DWORD</font> dwThreadId<font color="#990000">,</font> dwThrdParam <font color="#990000">=</font> <font color="#993399">1</font><font color="#990000">;</font>
+   <font color="#008080">HANDLE</font> hThread1<font color="#990000">,</font>hThread2<font color="#990000">;</font>	
+   <font color="#009900">char</font> szMsg<font color="#990000">[</font><font color="#993399">80</font><font color="#990000">];</font>
+   hThread1 <font color="#990000">=</font> <b><font color="#000000">CreateThread</font></b><font color="#990000">(</font>
+	NULL<font color="#990000">,</font>         <i><font color="#9A1900">// атрибуты безопасности по умолчанию</font></i>
+	<font color="#993399">0</font><font color="#990000">,</font>            <i><font color="#9A1900">// размер стека используется по умолчанию</font></i>
+	ThreadFuncQuick<font color="#990000">,</font>   <i><font color="#9A1900">// функция потока</font></i>
+	<font color="#990000">&amp;</font>dwThrdParam<font color="#990000">,</font> <i><font color="#9A1900">// аргумент функции потока</font></i>
+	<font color="#993399">0</font><font color="#990000">,</font>            <i><font color="#9A1900">// флажки создания используются по умолчанию</font></i>
+	<font color="#990000">&amp;</font>dwThreadId<font color="#990000">);</font> <i><font color="#9A1900">// возвращает идентификатор потока</font></i>
+	<i><font color="#9A1900">// При успешном завершении проверяет возвращаемое значение.</font></i>
+   hThread2 <font color="#990000">=</font> <b><font color="#000000">CreateThread</font></b><font color="#990000">(</font>
+	NULL<font color="#990000">,</font>         <i><font color="#9A1900">// атрибуты безопасности по умолчанию</font></i>
+	<font color="#993399">0</font><font color="#990000">,</font>            <i><font color="#9A1900">// размер стека используется по умолчанию</font></i>
+	ThreadFuncInsertion<font color="#990000">,</font>   <i><font color="#9A1900">// функция потока</font></i>
+	<font color="#990000">&amp;</font>dwThrdParam<font color="#990000">,</font> <i><font color="#9A1900">// аргумент функции потока</font></i>
+	<font color="#993399">0</font><font color="#990000">,</font>            <i><font color="#9A1900">// флажки создания используются по умолчанию</font></i>
+	<font color="#990000">&amp;</font>dwThreadId<font color="#990000">);</font> <i><font color="#9A1900">// возвращает идентификатор потока</font></i>
+	<i><font color="#9A1900">// При успешном завершении проверяет возвращаемое значение.</font></i>
+
+   <b><font color="#0000FF">if</font></b> <font color="#990000">(</font>hThread1 <font color="#990000">==</font> NULL <font color="#990000">||</font> hThread2 <font color="#990000">==</font> NULL<font color="#990000">)</font>
+   <font color="#FF0000">{</font>
+      <b><font color="#000000">wsprintf</font></b><font color="#990000">(</font> szMsg<font color="#990000">,</font> <font color="#FF0000">"CreateThread failed."</font> <font color="#990000">);</font> 
+      <b><font color="#000000">MessageBox</font></b><font color="#990000">(</font> NULL<font color="#990000">,</font> szMsg<font color="#990000">,</font> <font color="#FF0000">"main"</font><font color="#990000">,</font> MB_OK <font color="#990000">);</font>
+   <font color="#FF0000">}</font>
+   <b><font color="#0000FF">else</font></b> 
+   <font color="#FF0000">{</font>
+      <font color="#009900">int</font> <font color="#990000">*</font>arr<font color="#990000">=</font><font color="#008080">new</font> <font color="#009900">int</font><font color="#990000">[</font>N<font color="#990000">];</font>
+      <b><font color="#0000FF">for</font></b><font color="#990000">(</font><font color="#009900">int</font> i<font color="#990000">=</font><font color="#993399">0</font><font color="#990000">;</font>i<font color="#990000">&lt;</font>N<font color="#990000">;</font>i<font color="#990000">++)</font>
+         arr<font color="#990000">[</font>i<font color="#990000">]=</font><b><font color="#000000">rand</font></b><font color="#990000">()%</font><font color="#993399">100</font><font color="#990000">;</font>	
+      <b><font color="#000000">SelectionSort</font></b><font color="#990000">(</font>arr<font color="#990000">,</font>N<font color="#990000">);</font>
+      cout<font color="#990000">&lt;&lt;</font><font color="#FF0000">"Selection"</font><font color="#990000">&lt;&lt;</font>endl<font color="#990000">;</font>
+      cout<font color="#990000">.</font><b><font color="#000000">flush</font></b><font color="#990000">();</font>	   
+      <b><font color="#000000">_getch</font></b><font color="#990000">();</font>
+      <b><font color="#000000">CloseHandle</font></b><font color="#990000">(</font> hThread1 <font color="#990000">);</font>
+      <b><font color="#000000">CloseHandle</font></b><font color="#990000">(</font> hThread2 <font color="#990000">);</font>
+   <font color="#FF0000">}</font>
+<font color="#FF0000">}</font> 
+</tt></pre>
+</code></div></p>
+<a name="1-6-Вопросы для самопроверки"></a>
+
+
+<h2>Вопросы для самоконтроля</h2>
+
+<ol>
+</ol>
+</div>
+<div class="right">
+<h2>Разделы :</h2>
+
+<ul>
+<li><a href="#1-1-Состояния процесса">Состояния процесса</a></li><li><a href="#1-2-Создание процессов">Создание процессов</a></li>
+<ul>
+<li><a href="#2-3-В Unix">В Unix</a></li><li><a href="#2-4-В Windows">В Windows</a></li>
+</ul>
+<li><a href="#1-5-Создание потоков">Создание потоков</a></li><li><a href="#1-6-Вопросы для самопроверки">Вопросы для самопроверки</a></li></ul></div>
+<div style="clear: both;"> </div>
+
+</div>
+
+<div id="footer">
+</div>
+
+</div>
+
+</body>
+</html>
+
